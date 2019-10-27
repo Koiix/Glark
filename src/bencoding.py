@@ -1,7 +1,6 @@
 #Class used to handle the Bencoding for torrent files
 from collections import OrderedDict
 
-
 class Parser:
 
     # Indicates start of integers
@@ -73,37 +72,75 @@ class Parser:
     # returns a string, integer, list, dictionary, and/or ordered dictionary
     @staticmethod
     def decode(data: bytes):
-        # This first byte will always be important, rather a token specifying the beginning of a list, dict, etc
-        b = data[0]
+        val, parsed = Parser.decode_data(data)
+        return val
+
+    @staticmethod
+    def decode_data(data: bytes):
+        b = data[0:1]
         if b is None:
-            pass
+            return (None, None)
             # TODO what to do if unexpected EOF?
-        #
-        data = data[1:len(data)]
+
+        newdata = data[1:len(data)]
+
         options = {
             Parser.TOKEN_INT: Parser.decode_int,
-            Parser.TOKEN_STR: Parser.decode_str,
             Parser.TOKEN_LIST: Parser.decode_list,
             Parser.TOKEN_DICT: Parser.decode_dict,
+            Parser.TOKEN_END: lambda a: None
         }
-        if(options[b]!=None):
-            return options[b](data)
+        if b in options:
+            val, parsed = options[b](newdata)
+            return (val, parsed+1)
+        elif b in b'0123456789':
+            val, parsed = Parser.decode_str(data)
+            return (val, parsed)
+        return None
 
     def decode_dict(data: bytes):
         d = {}
-        while data[0] != Parser.TOKEN_END:
-            key = Parser.decode_str(data)
-            data = data[len(key):len(data)]
-            val = Parser.decode(data)
-            data = data[len(val):len(data)]
+        sum_parsed = 0
+        while data[0:1] != Parser.TOKEN_END:
+
+            # parse key
+            key, parsed = Parser.decode_str(data)
+            data = data[parsed+1:len(data)]
+            sum_parsed += parsed
+
+            #parse val
+            val, parsed = Parser.decode_data(data)
+            data = data[parsed+1:len(data)]
+            sum_parsed += parsed
+
+        # move forward one byte for TOKEN_END
         data=data[1:len(data)]
-        return d
+        return (d, sum_parsed + 1)
+
     def decode_list(data: bytes):
         l = []
-        while data[0] != Parser.TOKEN_END:
-            item = Parser.decode(data)
-        return
+        sum_parsed = 0
+        while data[0:1] != Parser.TOKEN_END:
+            temp, parsed = Parser.decode_data(data)
+            sum_parsed += parsed
+            data = data[parsed+1:len(data)]
+            l.append(temp)
+        return (l, sum_parsed+1)
+
     def decode_str(data: bytes):
-        return
+        find = None
+        strlen = 0
+        try:
+            find = data.index(Parser.TOKEN_STR)
+            strlen = int(data[0:find])
+        except ValueError:
+            raise RuntimeError("Unable to find {0} in \"{1}\"".format(Parser.TOKEN_STR, str(data)))
+        return (str(data[find+1:find+1+strlen]), strlen + find)
+
     def decode_int(data: bytes):
-        return
+        find = None
+        try:
+            find = data.index(Parser.TOKEN_END)
+        except ValueError:
+            raise RuntimeError("Unable to find {0} in \"{1}\"".format(Parser.TOKEN_END, str(data)))
+        return (int(data[0:find]), find)

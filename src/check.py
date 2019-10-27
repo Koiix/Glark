@@ -1,16 +1,3 @@
+from bencoding import Parser
 
-
-def change(data):
-    data = data[0:2]
-    return data
-
-b = 'hello'
-
-ba = bytes(b, 'UTF-8')
-
-print(ba)
-
-x = change(ba)
-
-newdata = ba[len(x):len(ba)]
-print(newdata)
+print(Parser.decode(b'l4:spam4:eggsi123ee'))
