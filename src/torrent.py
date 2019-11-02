@@ -32,7 +32,7 @@ from collections import namedTuple
         def info_hash(self):
             encoded = Parser.encode(self.info)
             self.info_hash = sha1(encoded).digest()
-            
+
         @property
         def files(self):
                 return self.files
@@ -45,11 +45,17 @@ from collections import namedTuple
 
         @property
         def announce(self):
-            return self.announce
+            return self.announce.decode('utf-8')
 
         @property
         def piece_length(self):
             return self.info[b'piece length']
+
+        @property
+        def md5sum(self):
+            if b'md5sum' in self.info:
+                return self.info[b'md5sum']
+            return None
 
         @property
         def size(self):
