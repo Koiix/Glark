@@ -1,3 +1,6 @@
 from bencoding import Parser
 
-print(Parser.decode(b'l4:spam4:eggsi123ee'))
+with open('../static/ubuntu-18.04.3-desktop-amd64.iso.torrent', 'rb') as f:
+    meta = f.read()
+    d = Parser.decode(meta)
+    print(d[b'announce'])

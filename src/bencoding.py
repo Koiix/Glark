@@ -39,7 +39,7 @@ class Parser:
     @staticmethod
     def encode_str(val: str) -> bytes:
         # str.encode used to do UTF-8 encoding required by specifications
-        return str(len(val) + ":" + val).encode('UTF-8')
+        return (str(len(val)) + ":" + val).encode('UTF-8')
 
     @staticmethod
     def encode_int(val: int) -> bytes:
@@ -88,7 +88,7 @@ class Parser:
             Parser.TOKEN_INT: Parser.decode_int,
             Parser.TOKEN_LIST: Parser.decode_list,
             Parser.TOKEN_DICT: Parser.decode_dict,
-            Parser.TOKEN_END: lambda a: None
+            Parser.TOKEN_END: lambda a: (None, 0)
         }
         if b in options:
             val, parsed = options[b](newdata)
@@ -96,7 +96,7 @@ class Parser:
         elif b in b'0123456789':
             val, parsed = Parser.decode_str(data)
             return (val, parsed)
-        return None
+        return (None, 0)
 
     def decode_dict(data: bytes):
         d = {}
@@ -105,14 +105,15 @@ class Parser:
 
             # parse key
             key, parsed = Parser.decode_str(data)
-            data = data[parsed+1:len(data)]
+            data = data[parsed:len(data)]
             sum_parsed += parsed
 
             #parse val
             val, parsed = Parser.decode_data(data)
-            data = data[parsed+1:len(data)]
+            data = data[parsed:len(data)]
             sum_parsed += parsed
 
+            d[key] = val
         # move forward one byte for TOKEN_END
         data=data[1:len(data)]
         return (d, sum_parsed + 1)
@@ -123,7 +124,7 @@ class Parser:
         while data[0:1] != Parser.TOKEN_END:
             temp, parsed = Parser.decode_data(data)
             sum_parsed += parsed
-            data = data[parsed+1:len(data)]
+            data = data[parsed:len(data)]
             l.append(temp)
         return (l, sum_parsed+1)
 
@@ -135,7 +136,7 @@ class Parser:
             strlen = int(data[0:find])
         except ValueError:
             raise RuntimeError("Unable to find {0} in \"{1}\"".format(Parser.TOKEN_STR, str(data)))
-        return (str(data[find+1:find+1+strlen]), strlen + find)
+        return (data[find+1:find+1+strlen], strlen + find+1)
 
     def decode_int(data: bytes):
         find = None
@@ -143,4 +144,4 @@ class Parser:
             find = data.index(Parser.TOKEN_END)
         except ValueError:
             raise RuntimeError("Unable to find {0} in \"{1}\"".format(Parser.TOKEN_END, str(data)))
-        return (int(data[0:find]), find)
+        return (int(data[0:find]), find+1)
