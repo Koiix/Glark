@@ -1,6 +1,3 @@
-from bencoding import Parser
+l = [6881+i for i in range(0,9)]
 
-with open('../static/ubuntu-18.04.3-desktop-amd64.iso.torrent', 'rb') as f:
-    meta = f.read()
-    d = Parser.decode(meta)
-    print(d[b'announce'])
+print(l)
