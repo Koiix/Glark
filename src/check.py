@@ -1,3 +1,7 @@
-l = [6881+i for i in range(0,9)]
+from torrent import Torrent
+from tracker import Tracker, TrackerResponse
 
-print(l)
+t = Torrent('../ubuntu-18.04.3-desktop-amd64.iso.torrent')
+track = Tracker(t)
+resp = track.request(0,0,'started')
+print(resp)

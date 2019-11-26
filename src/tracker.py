@@ -1,20 +1,74 @@
 # Used to store information needed for tracker request/response and state
 import random
-import aiohttp
 import asyncio
+import aiohttp
 import socket
 from torrent import Torrent
 from collections import namedTuple
 
-## TODO complete this named tuple and create function in Tracker to construct it
-Response = namedTuple('Response', )
-
 REGISTERED_PORTS = [6881+i for i in range(0,9)]
 
+## TODO complete this named tuple and create function in Tracker to construct it
 class Response:
 
-    def __init__(self, response: dict):
-        ## TODO: init .. xd
+    Peer = namedtuple('Peer', 'id ip port')
+
+    def __init__(self, data: dict):
+        self.data = data
+
+    @property
+    def failure(self):
+        #Optional
+        if 'failure reason' in self.data:
+            return self.data['failure reason']
+        return None
+
+    @property
+    def warning(self):
+        #Optional
+        if 'warning message' in self.data:
+            return self.data['warning message']
+        return None
+
+    @property
+    def interval(self):
+        return self.data['interval']
+
+    @property
+    def min_interval(self):
+        #Optional
+        if 'min interval' in self.data:
+            return self.data['min interval']
+        return None
+
+    @property
+    def tracker_id(self):
+        return self.data['tracker id']
+
+    @property
+    def complete(self):
+        return self.data['complete']
+
+    @property
+    def incomplete(self):
+        return self.data['incomplete']
+
+    # processing of peers attribute done here
+    # returns list of Peer tuples declared above
+    @property
+    def peers(self):
+        peers_data = self.data['peers']
+        peers_list = []
+        if type(peers_data) == list:
+            for d in peers_data:
+                peers_list.append(Peer(d['peer id'], d['ip'], d['port']))
+            return peers_list
+        elif type(peers_data) == str:
+            peers_list = [peers_data[i:i+6] for i in range(0, len(peers_data), 6)]
+            return [Peer(i, p[0:4], p[4:]) for p in peers_list]
+        else:
+            return None
+
 
 class Tracker:
 
@@ -23,21 +77,19 @@ class Tracker:
         self.peer_id = _gen_peer_id()
         self.http_handler = aiohttp.ClientSession()
         self.port = _gen_port()
-        self.first = True
 
     async def _fetch(handler, url):
         async with handler.get(url) as response:
-            return await.response
+            return await response
 
-    async def request(self, uploaded=None, downloaded=None) -> TrackerResponse:
-        # if optional arguments not provided, use state stored with Tracker as default
-        if uploaded is None:
-            uploaded = self.uploaded
-        if downloaded is None:
-            downloaded = self.downloaded
+    async def close(self):
+        await self.http_client.close()
+
+    async def request(self, uploaded, downloaded, state=None) -> TrackerResponse:
+
+        ## TODO: optional request params i.e. 'numwant','key','trackerid'
 
         ## Forge HTTP GET Request for tracker
-        ## TODO: optional request params i.e. 'numwant','key','trackerid'
         params = {
             'info_hash': self.torrent.info_hash,
             'peer_id': self.peer_id,
@@ -48,22 +100,20 @@ class Tracker:
         }
 
 
-
-        if self.first:
-            params['event'] = 'started'
-            first = False
-        ## TODO: implement events 'stopped' and 'completed'
+        if state is not None:
+            ## TODO: validate state?
+            params['event'] = state
 
         req_url = self.torrent.announce + "?" + urlencode(params)
 
         async with self.http_handler as handler:
             http_response = await fetch(handler, req_url)
-            if not http_response == 200:
+            if not http_response.status == 200:
+                pass
                 ## TODO error handling
             encoded = await http_response.read()
             self.last_response = Response(Parser.decode(encoded))
             return self.last_response
-
 
     def _gen_peer_id():
         peer_id = '-GT0001-'
